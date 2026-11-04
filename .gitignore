@@ -1,0 +1,41 @@
+# --- секреты и окружение ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+.venv/
+
+*.env
+.envrc
+*.p12
+*.pfx
+credentials*.json
+service-account*.json
+.netrc
+.pypirc
+.mcp.json
+
+# --- локальные материалы и черновики: не публикуются ---
+private/
+*.pdf
+*.doc
+*.docx
+.cursor/
+.aider*
+.claude/
+.serena/
+CLAUDE.md
+graphify-out/
+
+# --- кэш, логи, артефакты ---
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.log
+logs/
+evals/runs/
+.DS_Store
