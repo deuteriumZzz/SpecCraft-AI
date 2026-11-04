@@ -34,6 +34,8 @@ uv run uvicorn app.main:create_app --factory
 
 Тесты и evals (ключ не нужен): `uv run pytest` и `uv run python -m evals.run_evals`.
 Реальные примеры карточек: `uv run python -m scripts.generate_examples` (нужен ключ) → `examples/`.
+Стили интерфейса: исходники в `frontend/`, готовый `app/static/tailwind.css` закоммичен (Node для запуска не нужен);
+пересборка: `npx tailwindcss@3.4.17 -c frontend/tailwind.config.js -i frontend/input.css -o app/static/tailwind.css --minify`.
 
 ## Как это работает
 ```mermaid
