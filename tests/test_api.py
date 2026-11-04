@@ -140,3 +140,40 @@ def test_static_files_are_revalidated_not_heuristically_cached(make_client):
     for path in ("/", "/app.js", "/tailwind.css"):
         assert client.get(path).headers["cache-control"] == "no-cache", path
     assert client.post("/api/cards", json=PAYLOAD).headers["cache-control"] == "no-store"
+
+
+RENDER_BODY = {
+    "seo_title": "Заголовок",
+    "seo_description": "Описание.",
+    "characteristics": [{"name": "класс", "value": "1,5"}],
+    "search_queries": ["запрос"],
+    "commercial": {"audience": "Для инженеров.", "tasks": "Контроль."},
+}
+
+
+def test_render_endpoint_builds_markdown_and_text_from_an_edited_draft(make_client):
+    llm = FakeLLM()
+    r = make_client(llm).post("/api/render", json=RENDER_BODY)
+    body = r.json()
+    assert r.status_code == 200 and body["markdown"].startswith("# Заголовок")
+    assert "класс: 1,5" in body["text"] and llm.calls == []
+
+
+def test_render_endpoint_neutralises_markup_and_enforces_limits(make_client):
+    client = make_client(FakeLLM())
+    evil = {**RENDER_BODY, "seo_title": "<script>x</script> [a](http://e.ru)"}
+    md = client.post("/api/render", json=evil).json()["markdown"]
+    assert "<script" not in md and "[a](" not in md
+    too_long = {**RENDER_BODY, "seo_description": "я" * 5001}
+    assert client.post("/api/render", json=too_long).status_code == 422
+    assert client.post("/api/render", json={**RENDER_BODY, "meta": {}}).status_code == 422
+
+
+def test_render_endpoint_works_when_generation_slots_are_busy(make_client, monkeypatch):
+    import threading
+
+    from app.api import cards
+
+    monkeypatch.setattr(cards, "_slots", threading.BoundedSemaphore(1))
+    cards._slots.acquire()
+    assert make_client(FakeLLM()).post("/api/render", json=RENDER_BODY).status_code == 200

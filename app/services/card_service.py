@@ -3,7 +3,8 @@
 Конвейер: проверка входа на инъекции → промпт → LLM → схема → санитизация →
 верификация (с ограниченными ретраями) → финализация → сборка характеристик →
 рендер. Хендлеры и клиенты не знают порядка шагов: он зафиксирован здесь.
-Принцип: всё, что код меняет или выбрасывает в ответе модели, явно попадает в warnings.
+Принцип: всё, что код меняет или выбрасывает в ответе модели, явно попадает в warnings,
+причём с адресом раздела карточки (warning_fields), чтобы интерфейс мог на него указать.
 """
 
 import re
@@ -15,7 +16,15 @@ from app.core.logging import log_event
 from app.core.security import detect_injection, strip_unsafe, trusted_text
 from app.llm.base import LLMClient
 from app.prompts.loader import PromptTemplate, render_user
-from app.schemas.card import NO_DATA, CardMeta, CardOut, Commercial, LLMCard
+from app.schemas.card import (
+    NO_DATA,
+    CardMeta,
+    CardOut,
+    Commercial,
+    LLMCard,
+    RenderIn,
+    RenderOut,
+)
 from app.schemas.product import ProductIn
 from app.services import characteristics, render, verifier
 
@@ -26,6 +35,9 @@ INJECTION_WARNING = (
 MAX_MODEL_QUERIES = 10  # больше модель не должна присылать: лишнее отбрасывается с пометкой
 MAX_MODEL_WARNINGS = 5
 MAX_WARNING_LEN = 200
+
+# Предупреждение: (текст, раздел карточки или "" если относится ко всему ответу).
+Note = tuple[str, str]
 
 
 def _truncate(text: str, limit: int) -> str:
@@ -60,28 +72,34 @@ class CardService:
         self._model = model_name
         self._max_attempts = max_attempts
 
+    @staticmethod
+    def render_edited(card: RenderIn) -> RenderOut:
+        """Markdown и текст для отредактированного вручную черновика (без обращения к LLM)."""
+        return RenderOut(markdown=render.to_markdown(card), text=render.to_text(card))
+
     def generate(self, product: ProductIn) -> CardOut:
-        warnings: list[str] = []
+        notes: list[Note] = []
         source, flagged = _build_source(product)
         allowed = verifier.source_numbers(source)
         if flagged:
-            warnings.append(INJECTION_WARNING)
+            notes.append((INJECTION_WARNING, "input"))
 
         card, removed = self._ask_model(product, source, allowed)
         if removed:
-            warnings.append("Из ответа модели удалено: " + ", ".join(sorted(removed)) + ".")
+            notes.append(("Из ответа модели удалено: " + ", ".join(sorted(removed)) + ".", ""))
 
-        card, notes = self._finalize(card, product, allowed)
-        warnings += notes
+        card, finalize_notes = self._finalize(card, product, allowed)
+        notes += finalize_notes
 
         extracted, rejected = characteristics.accept_extracted(
             product, card.extracted_specs, allowed, not flagged
         )
         if rejected:
-            warnings.append(
+            notes.append((
                 f"Отклонено характеристик, извлечённых моделью из описания: {rejected} "
-                "(значение не найдено в тексте или в названии есть лишние числа)."
-            )
+                "(значение не найдено в тексте или в названии есть лишние числа).",
+                "characteristics",
+            ))
         chars, missing = characteristics.build(product, extracted)
 
         out = CardOut(
@@ -91,7 +109,8 @@ class CardService:
             search_queries=card.search_queries,
             commercial=card.commercial,
             missing_fields=missing,
-            warnings=warnings,
+            warnings=[text for text, _ in notes],
+            warning_fields=[field for _, field in notes],
             meta=CardMeta(prompt_version=self._prompt.version, model=self._model),
             markdown="",
             text="",
@@ -101,7 +120,7 @@ class CardService:
             "card_generated",
             prompt_version=self._prompt.version,
             desc_len=len(out.seo_description),
-            warnings=len(warnings),
+            warnings=len(notes),
             missing=len(missing),
         )
         return out
@@ -170,38 +189,49 @@ class CardService:
     @staticmethod
     def _finalize(
         card: LLMCard, product: ProductIn, allowed: set[str]
-    ) -> tuple[LLMCard, list[str]]:
+    ) -> tuple[LLMCard, list[Note]]:
         """Последняя линия обороны: то, что не удалось исправить ретраями, чистится кодом
         и явно помечается в warnings (молча ничего не правим). Не меняет переданный объект."""
         card = card.model_copy(deep=True)
-        notes: list[str] = []
+        notes: list[Note] = []
 
         title = card.seo_title
         if not title:
             title = _truncate(product.name, verifier.TITLE_MAX)
-            notes.append("Модель вернула пустой заголовок: подставлено название товара.")
+            notes.append(
+                ("Модель вернула пустой заголовок: подставлено название товара.", "seo_title")
+            )
         elif verifier.unsupported_numbers(title, allowed):
             title = _truncate(product.name, verifier.TITLE_MAX)
-            notes.append("Заголовок заменён на название товара: модель добавила лишние числа.")
+            notes.append((
+                "Заголовок заменён на название товара: модель добавила лишние числа.",
+                "seo_title",
+            ))
         if len(title) > verifier.TITLE_MAX:
             title = _truncate(title, verifier.TITLE_MAX)
-            notes.append(f"Заголовок обрезан до {verifier.TITLE_MAX} символов.")
+            notes.append((f"Заголовок обрезан до {verifier.TITLE_MAX} символов.", "seo_title"))
         card.seo_title = title
 
         desc, dropped = verifier.drop_unsupported_sentences(card.seo_description, allowed)
         if dropped:
-            notes.append(f"Удалено предложений с непроверяемыми числами в описании: {dropped}.")
+            notes.append((
+                f"Удалено предложений с непроверяемыми числами в описании: {dropped}.",
+                "seo_description",
+            ))
         card.seo_description = desc
         if not verifier.DESC_MIN <= len(desc) <= verifier.DESC_MAX:
-            notes.append(
+            notes.append((
                 f"Длина SEO-описания {len(desc)} символов, норма {verifier.DESC_MIN}–"
-                f"{verifier.DESC_MAX}: отредактируйте вручную."
-            )
+                f"{verifier.DESC_MAX}: отредактируйте вручную.",
+                "seo_description",
+            ))
 
         audience, n_a = verifier.drop_unsupported_sentences(card.commercial.audience, allowed)
         tasks, n_t = verifier.drop_unsupported_sentences(card.commercial.tasks, allowed)
         if n_a or n_t:
-            notes.append("Из commercial-блока удалены предложения с непроверяемыми числами.")
+            notes.append((
+                "Из commercial-блока удалены предложения с непроверяемыми числами.", "commercial"
+            ))
         card.commercial = Commercial(audience=audience or NO_DATA, tasks=tasks or NO_DATA)
 
         queries: list[str] = []
@@ -215,20 +245,24 @@ class CardService:
                 continue
             queries.append(q)
         if dropped_queries:
-            notes.append(f"Удалено поисковых запросов с непроверяемыми числами: {dropped_queries}.")
+            notes.append((
+                f"Удалено поисковых запросов с непроверяемыми числами: {dropped_queries}.",
+                "search_queries",
+            ))
         card.search_queries = queries[: verifier.QUERIES_MAX]
         if len(card.search_queries) < verifier.QUERIES_MIN:
-            notes.append(
-                f"Поисковых запросов меньше {verifier.QUERIES_MIN}: добавьте вручную."
-            )
+            notes.append((
+                f"Поисковых запросов меньше {verifier.QUERIES_MIN}: добавьте вручную.",
+                "search_queries",
+            ))
 
         # Предупреждения модели тоже её текст: числа без опоры во входе в них не допускаются.
-        model_warnings: list[str] = []
+        model_warnings: list[Note] = []
         for warning in card.warnings:
             text, _ = verifier.drop_unsupported_sentences(warning, allowed)
             if text.strip():
-                model_warnings.append(f"Модель: {text.strip()[:MAX_WARNING_LEN]}")
+                model_warnings.append((f"Модель: {text.strip()[:MAX_WARNING_LEN]}", ""))
             elif warning.strip():
-                notes.append("Предупреждение модели удалено: в нём непроверяемые числа.")
-        card.warnings = model_warnings
+                notes.append(("Предупреждение модели удалено: в нём непроверяемые числа.", ""))
+        card.warnings = [text for text, _ in model_warnings]
         return card, notes + model_warnings

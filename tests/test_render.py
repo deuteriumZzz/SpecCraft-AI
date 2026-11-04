@@ -11,6 +11,7 @@ def _card(value: str) -> CardOut:
         commercial=Commercial(audience="Для инженеров.", tasks="Контроль."),
         missing_fields=[],
         warnings=[],
+        warning_fields=[],
         meta=CardMeta(prompt_version="1", model="m"),
         markdown="",
         text="",

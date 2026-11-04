@@ -9,7 +9,7 @@ from slowapi.util import get_remote_address
 from app.api.deps import get_service
 from app.core.config import get_settings
 from app.core.errors import ServiceBusy
-from app.schemas.card import CardOut
+from app.schemas.card import CardOut, RenderIn, RenderOut
 from app.schemas.product import ProductIn
 from app.services.card_service import CardService
 
@@ -39,3 +39,13 @@ def create_card(
         return service.generate(product)
     finally:
         _slots.release()
+
+
+@router.post("/render", response_model=RenderOut)
+@limiter.limit("120/minute")
+def render_card(
+    request: Request, card: RenderIn, service: CardService = Depends(get_service)
+) -> RenderOut:
+    """Markdown и текст для отредактированного черновика. LLM не вызывается, поэтому
+    отдельный (щедрый) лимит и без ограничителя одновременных генераций."""
+    return service.render_edited(card)

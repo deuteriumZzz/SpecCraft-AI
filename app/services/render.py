@@ -9,7 +9,7 @@
 import re
 
 from app.core.security import STRAY_LT
-from app.schemas.card import CardOut
+from app.schemas.card import CardOut, RenderIn
 
 
 def _plain(text: str) -> str:
@@ -27,7 +27,7 @@ def _cell(text: str) -> str:
     return _md(text).replace("|", "\\|")
 
 
-def to_markdown(card: CardOut) -> str:
+def to_markdown(card: CardOut | RenderIn) -> str:
     lines = [f"# {_md(card.seo_title)}", "", _md(card.seo_description), "", "## Характеристики", ""]
     lines += ["| Параметр | Значение |", "| --- | --- |"]
     lines += [f"| {_cell(c.name)} | {_cell(c.value)} |" for c in card.characteristics]
@@ -47,7 +47,7 @@ def to_markdown(card: CardOut) -> str:
     return "\n".join(lines) + "\n"
 
 
-def to_text(card: CardOut) -> str:
+def to_text(card: CardOut | RenderIn) -> str:
     lines = [_plain(card.seo_title), "", _plain(card.seo_description), "", "Характеристики:"]
     lines += [f"- {_plain(c.name)}: {_plain(c.value)}" for c in card.characteristics]
     lines += ["", "Поисковые запросы: " + "; ".join(_plain(q) for q in card.search_queries), ""]
