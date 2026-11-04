@@ -177,3 +177,13 @@ def test_render_endpoint_works_when_generation_slots_are_busy(make_client, monke
     monkeypatch.setattr(cards, "_slots", threading.BoundedSemaphore(1))
     cards._slots.acquire()
     assert make_client(FakeLLM()).post("/api/render", json=RENDER_BODY).status_code == 200
+
+
+def test_favicon_and_page_markup(make_client):
+    client = make_client(FakeLLM())
+    icon = client.get("/favicon.svg")
+    assert icon.status_code == 200 and icon.headers["content-type"].startswith("image/svg+xml")
+    page = client.get("/").text
+    assert 'rel="icon"' in page and 'href="#output"' in page  # значок и ссылка «к результату»
+    for element_id in ("mode-form", "f-name", "f-specs", "load", "download", "output"):
+        assert f'id="{element_id}"' in page
