@@ -124,3 +124,12 @@ def test_busy_service_answers_503_with_retry_after(make_client, monkeypatch):
 def test_provider_rate_limit_has_retry_after(make_client):
     r = make_client(FakeLLM([LLMRateLimited()])).post("/api/cards", json=PAYLOAD)
     assert r.status_code == 429 and r.headers["retry-after"] == "60"
+
+
+def test_validation_details_are_in_russian(make_client):
+    body = make_client(FakeLLM()).post(
+        "/api/cards", json={"name": "Датчик", "specs": {"класс точности": 1.5}, "price": 1}
+    ).json()
+    text = " ".join(body["details"])
+    assert "нужна строка" in text and "неизвестное поле" in text
+    assert "Input should" not in text and "Value error" not in text

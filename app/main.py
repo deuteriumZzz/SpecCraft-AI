@@ -42,6 +42,20 @@ SECURITY_HEADERS = {
     "X-Frame-Options": "DENY",
 }
 HTTP_MESSAGES = {404: "Ресурс не найден.", 405: "Метод не поддерживается."}
+# Типовые ошибки валидации по-русски: интерфейс русский, менеджеру не нужен английский pydantic.
+VALIDATION_MESSAGES = {
+    "string_type": "нужна строка (текст в кавычках)",
+    "string_too_long": "слишком длинное значение",
+    "missing": "обязательное поле",
+    "extra_forbidden": "неизвестное поле",
+    "dict_type": "нужен объект {...}",
+    "model_attributes_type": "нужен объект {...}",
+}
+
+
+def _validation_text(error: dict) -> str:
+    known = VALIDATION_MESSAGES.get(error["type"])
+    return known or str(error["msg"]).removeprefix("Value error, ")
 
 
 def _error(
@@ -151,7 +165,8 @@ def create_app(llm: LLMClient | None = None, settings: Settings | None = None) -
         errors = exc.errors()
         # Детали без поля input: не возвращаем клиенту его же данные и не раздуваем ответ.
         details = [
-            f"{'.'.join(str(p) for p in e['loc'] if p != 'body') or 'тело запроса'}: {e['msg']}"
+            f"{'.'.join(str(p) for p in e['loc'] if p != 'body') or 'тело запроса'}: "
+            f"{_validation_text(e)}"
             for e in errors[:10]
         ]
         if any(e["type"] == "json_invalid" for e in errors):

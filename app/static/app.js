@@ -95,8 +95,10 @@ async function generate() {
   let payload;
   try {
     payload = JSON.parse($("input").value);
-  } catch (e) {
-    showError("Введённый текст не является корректным JSON.", [String(e.message).slice(0, 200)]);
+  } catch {
+    // Текст ошибки браузера английский и бесполезен менеджеру: даём типовую подсказку.
+    showError("Введённый текст не является корректным JSON.",
+      ["Проверьте скобки, кавычки вокруг названий и значений и запятые между полями."]);
     return;
   }
   $("run").disabled = true;
