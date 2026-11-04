@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     # Имя модели намеренно без значения по умолчанию: бесплатные модели и квоты
     # меняются, хардкод в коде быстро устареет.
     gemini_model: str = Field(min_length=1)
-    llm_timeout_seconds: float = Field(default=30, gt=0, le=120)
+    llm_timeout_seconds: float = Field(default=45, gt=0, le=120)
     llm_max_retries: int = Field(default=2, ge=0, le=5)
     rate_limit: str = "10/minute"
     cors_origins: str = ""  # через запятую; пусто = CORS выключен

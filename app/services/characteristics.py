@@ -55,7 +55,9 @@ def accept_extracted(
     """
     if not trusted_input:
         return [], len(extracted)
-    known = {norm(k) for k in product.specs}
+    # Авторитетны только непустые spec: пустое значение или заглушка («—») поставщика можно
+    # заполнить из описания, иначе карточка скажет «данных нет» там, где описание даёт ответ.
+    known = {norm(k) for k, v in product.specs.items() if not _empty(v)}
     description = norm(trusted_text(product.description))
     trusted = trusted_text(product.description)
     accepted: list[Characteristic] = []
@@ -88,13 +90,19 @@ def build(
         missing.append("описание")
 
     chars: list[Characteristic] = []
+    suffix = " (из описания)"
+    fills = {norm(e.name.removesuffix(suffix)): e for e in extracted}
+    used: set[str] = set()
     for key, value in product.specs.items():
-        if _empty(value):
+        if not _empty(value):
+            chars.append(Characteristic(name=key, value=value))
+        elif norm(key) in fills:  # пустое значение заполнено из описания (дословно найдено)
+            chars.append(fills[norm(key)])
+            used.add(norm(key))
+        else:
             chars.append(Characteristic(name=key, value=NO_DATA))
             missing.append(f"уточнить значение: {key}")
-        else:
-            chars.append(Characteristic(name=key, value=value))
-    chars.extend(extracted)
+    chars.extend(e for e in extracted if norm(e.name.removesuffix(suffix)) not in used)
 
     # Пустые spec тоже считаются «присутствующими»: они уже помечены как «уточнить значение»,
     # дублировать их строкой «данных нет» не нужно.

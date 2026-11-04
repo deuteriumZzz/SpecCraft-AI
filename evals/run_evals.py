@@ -29,6 +29,7 @@ HERE = Path(__file__).parent
 LIVE_PAUSE_SECONDS = 7  # бесплатный тариф Gemini: ограничение запросов в минуту
 CASE_KEYS = {
     "id", "input", "raw_body", "description_repeat", "fake_overrides", "fake_raises", "expect",
+    "live",
 }
 EXPECT_KEYS = {
     "status", "code", "retry_after", "not_in_output", "missing_contains", "char_equals",
@@ -112,12 +113,15 @@ def _check(case: dict, resp, llm, payload: dict) -> tuple[list[str], list[str]]:
             errors.append("ожидались warnings")
         if exp.get("forbid_numbers_not_in_input"):
             allowed = verifier.source_numbers(_numbers_source(payload))
-            texts = [
-                body["seo_title"], body["seo_description"], *body["search_queries"],
-                body["commercial"]["audience"], body["commercial"]["tasks"],
-                *(c["value"] for c in body["characteristics"]),
+            strict = [body["seo_title"], body["seo_description"]]
+            soft = [
+                *body["search_queries"], body["commercial"]["audience"],
+                body["commercial"]["tasks"], *(c["value"] for c in body["characteristics"]),
             ]
-            bad = sorted({n for t in texts for n in verifier.unsupported_numbers(t, allowed)})
+            bad = sorted(
+                {n for t in strict for n in verifier.unsupported_numbers(t, allowed)}
+                | {n for t in soft for n in verifier.unsupported_numbers(t, allowed, claims=False)}
+            )
             if bad:
                 errors.append(f"в карточке числа вне входных данных: {bad[:6]}")
     if "prompt_count" in exp:
@@ -148,7 +152,10 @@ def run(live: bool) -> int:
     try:
         for case in cases:
             unknown = set(case) - CASE_KEYS
-            needs_fake = "fake_overrides" in case or "fake_raises" in case
+            # live: true — кейс осмыслен и на настоящей модели (та же инъекция во входе, подмена
+            # ответа не нужна): в live-режиме подмена игнорируется, проверяется реальная модель.
+            fake_case = "fake_overrides" in case or "fake_raises" in case
+            needs_fake = fake_case and not case.get("live")
             if live and needs_fake:
                 skipped += 1
                 print(f"SKIP  {case['id']} (нужна подмена модели, только fake)")

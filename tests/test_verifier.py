@@ -52,7 +52,7 @@ def test_verify_reports_unsupported_numbers_in_any_field():
 
 def test_number_words_must_come_from_source():
     allowed = _allowed("класс точности 1,5")
-    assert verifier.unsupported_numbers("гарантия пять лет", allowed) == ["пять"]
+    assert verifier.unsupported_numbers("срок службы пять лет", allowed) == ["пять"]
     assert verifier.unsupported_numbers("пять бар", _allowed("пять бар")) == []
 
 
@@ -66,3 +66,14 @@ def test_declined_number_words_are_caught():
     bad = verifier.unsupported_numbers("до пятнадцати бар, двух каналов, трёх режимов", set())
     assert len(bad) == 3
     assert verifier.unsupported_numbers("пятиэтажный корпус", set()) == []  # часть слова не в счёт
+
+
+def test_risky_claims_need_support_in_the_input():
+    text = "Применяется в жилищно-коммунальном хозяйстве, корпус из нержавеющей стали."
+    bad = verifier.unsupported_numbers(text, _allowed("Манометр для воды"))
+    assert "«жилищн…»" in bad and any("нержавеющ" in b for b in bad)
+    # Если слово есть во входе, оно законно (в любой форме и регистре).
+    known = _allowed("ЖИЛИЩНО-коммунальные сети, нержавеющая сталь")
+    assert verifier.unsupported_numbers(text, known) == []
+    # В commercial-блоке предположения об отраслях допустимы.
+    assert verifier.unsupported_numbers(text, set(), claims=False) == []

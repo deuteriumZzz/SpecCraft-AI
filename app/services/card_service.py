@@ -13,7 +13,7 @@ from pydantic import ValidationError
 
 from app.core.errors import InvalidModelOutput
 from app.core.logging import log_event
-from app.core.security import detect_injection, strip_unsafe, trusted_text
+from app.core.security import detect_injection, split_sentences, strip_unsafe, trusted_text
 from app.llm.base import LLMClient
 from app.prompts.loader import PromptTemplate, render_user
 from app.schemas.card import (
@@ -204,7 +204,7 @@ class CardService:
         elif verifier.unsupported_numbers(title, allowed):
             title = _truncate(product.name, verifier.TITLE_MAX)
             notes.append((
-                "Заголовок заменён на название товара: модель добавила лишние числа.",
+                "Заголовок заменён на название товара: в нём есть то, чего нет в данных.",
                 "seo_title",
             ))
         if len(title) > verifier.TITLE_MAX:
@@ -218,6 +218,20 @@ class CardService:
                 f"Удалено предложений с непроверяемыми числами в описании: {dropped}.",
                 "seo_description",
             ))
+        if len(desc) > verifier.DESC_MAX:
+            # Модель часто перебирает длину. Лишнее убираем с конца целыми предложениями:
+            # удаление не добавляет фактов. Если после этого вышло бы короче нормы, не трогаем.
+            sentences = split_sentences(desc)
+            while len(sentences) > 1 and len(" ".join(sentences)) > verifier.DESC_MAX:
+                sentences.pop()
+            trimmed = " ".join(sentences)
+            if verifier.DESC_MIN <= len(trimmed) <= verifier.DESC_MAX:
+                notes.append((
+                    f"Описание сокращено с {len(desc)} до {len(trimmed)} символов: "
+                    "удалены последние предложения.",
+                    "seo_description",
+                ))
+                desc = trimmed
         card.seo_description = desc
         if not verifier.DESC_MIN <= len(desc) <= verifier.DESC_MAX:
             notes.append((
@@ -226,8 +240,9 @@ class CardService:
                 "seo_description",
             ))
 
-        audience, n_a = verifier.drop_unsupported_sentences(card.commercial.audience, allowed)
-        tasks, n_t = verifier.drop_unsupported_sentences(card.commercial.tasks, allowed)
+        soft = verifier.drop_unsupported_sentences  # предположения допустимы: claims=False
+        audience, n_a = soft(card.commercial.audience, allowed, claims=False)
+        tasks, n_t = soft(card.commercial.tasks, allowed, claims=False)
         if n_a or n_t:
             notes.append((
                 "Из commercial-блока удалены предложения с непроверяемыми числами.", "commercial"
@@ -240,7 +255,7 @@ class CardService:
             q = re.sub(r"\s+", " ", q).strip().lower()
             if not q or q in queries:
                 continue
-            if verifier.unsupported_numbers(q, allowed):
+            if verifier.unsupported_numbers(q, allowed, claims=False):
                 dropped_queries += 1
                 continue
             queries.append(q)
@@ -251,15 +266,24 @@ class CardService:
             ))
         card.search_queries = queries[: verifier.QUERIES_MAX]
         if len(card.search_queries) < verifier.QUERIES_MIN:
+            # Требование «3–5 запросов» выполняем всегда: недостающие строим из названия товара
+            # («… купить», «… характеристики»). Новых фактов нет, менеджер видит пометку.
+            base = re.sub(r"\s+", " ", product.name).strip().lower()[:100]
+            for extra in (base, f"{base} купить", f"{base} характеристики", f"{base} цена"):
+                if len(card.search_queries) >= verifier.QUERIES_MIN:
+                    break
+                if extra not in card.search_queries:
+                    card.search_queries.append(extra)
             notes.append((
-                f"Поисковых запросов меньше {verifier.QUERIES_MIN}: добавьте вручную.",
+                f"Модель дала меньше {verifier.QUERIES_MIN} запросов: недостающие добавлены "
+                "из названия товара.",
                 "search_queries",
             ))
 
         # Предупреждения модели тоже её текст: числа без опоры во входе в них не допускаются.
         model_warnings: list[Note] = []
         for warning in card.warnings:
-            text, _ = verifier.drop_unsupported_sentences(warning, allowed)
+            text, _ = verifier.drop_unsupported_sentences(warning, allowed, claims=False)
             if text.strip():
                 model_warnings.append((f"Модель: {text.strip()[:MAX_WARNING_LEN]}", ""))
             elif warning.strip():

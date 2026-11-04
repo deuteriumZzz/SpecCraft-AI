@@ -313,3 +313,51 @@ def test_edited_draft_is_rendered_without_llm(make_service):
     assert "<b" not in out.markdown and "\n# не заголовок" not in out.markdown
     assert out.markdown.startswith("# Свой") and "класс" in out.text
     assert llm.calls == []
+
+
+@pytest.mark.parametrize("empty", ["", "—", "н/д"])
+def test_empty_spec_is_filled_from_the_description(make_service, good_output, empty):
+    p = ProductIn(
+        name="Термометр", specs={"питание": empty}, description="Питание от встроенной батареи."
+    )
+    spec = {"name": "питание", "value": "от встроенной батареи"}
+    card = make_service(FakeLLM([{**good_output, "extracted_specs": [spec]}])).generate(p)
+    chars = [(c.name, c.value) for c in card.characteristics]
+    assert ("питание (из описания)", "от встроенной батареи") in chars
+    assert not any(n == "питание" for n, _ in chars)  # нет второй строки «данных нет»
+    assert "уточнить значение: питание" not in card.missing_fields
+    assert "питание" not in card.missing_fields
+
+
+def test_model_cannot_invent_industries_or_materials(make_service, product, good_output):
+    bad = {**good_output}
+    bad["seo_description"] += " Применяется в жилищно-коммунальном хозяйстве и нефтяной отрасли."
+    bad["commercial"] = {"audience": "Предположение: промышленные предприятия.", "tasks": "-"}
+    card = make_service(FakeLLM([bad])).generate(product)
+    assert "жилищн" not in card.seo_description and "нефтян" not in card.seo_description
+    assert "промышленные" in card.commercial.audience  # предположение в commercial остаётся
+    assert any("непроверяемыми" in w for w in card.warnings)
+
+
+def test_overlong_description_is_trimmed_by_whole_sentences(make_service, product, good_output):
+    sentence = "Манометр предназначен для измерения избыточного давления жидкостей и газов. "
+    long = {**good_output, "seo_description": (sentence * 17).strip()}  # ~1290 символов
+    assert len(long["seo_description"]) > 1200
+    card = make_service(FakeLLM([long])).generate(product)
+    assert 800 <= len(card.seo_description) <= 1200
+    assert card.seo_description.endswith("газов.")  # обрезано по границе предложения
+    assert any("сокращено" in w for w in card.warnings)
+
+
+def test_trimming_never_goes_below_the_minimum(make_service, product, good_output):
+    # Одно огромное предложение: резать по предложениям нельзя, остаётся предупреждение.
+    one = {**good_output, "seo_description": "Слово " * 250}
+    card = make_service(FakeLLM([one])).generate(product)
+    assert any("Длина SEO-описания" in w for w in card.warnings)
+
+
+def test_too_few_queries_are_completed_from_the_product_name(make_service, product, good_output):
+    card = make_service(FakeLLM([{**good_output, "search_queries": ["один"]}])).generate(product)
+    assert 3 <= len(card.search_queries) <= 5
+    assert all(q == q.lower() for q in card.search_queries)
+    assert any("недостающие добавлены" in w for w in card.warnings)
