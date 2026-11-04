@@ -14,6 +14,10 @@
   <a href="#быстрый-старт">Быстрый старт</a> · <a href="#как-это-работает">Как это работает</a> · <a href="#пример">Пример</a> · <a href="#безопасность">Безопасность</a> · <a href="#ограничения-и-планы">Ограничения</a>
 </p>
 
+<p align="center">
+  <img src="docs/assets/screenshot.png" alt="Интерфейс: карточка с шкалами допусков и пропусками данных" width="920">
+</p>
+
 ## Что умеет
 - Принимает данные JSON или формой (поля и список характеристик), из файла `.json` или перетаскиванием, либо через `POST /api/cards`. Ввод запоминается в браузере, «Очистить» стирает его.
 - Карточка видна как паспорт, Markdown или JSON; заголовок и описание можно править на месте, шкалы пересчитываются сразу; копировать можно целиком или по разделам, скачать файлом.
@@ -53,8 +57,8 @@ curl -s localhost:8000/api/cards -H 'Content-Type: application/json' -d @example
 ```
 Ответ: `seo_title`, `seo_description`, `characteristics[{name,value}]`, `search_queries`,
 `commercial{audience,tasks}`, `missing_fields`, `warnings`, `meta`, `markdown`, `text`.
-Входы лежат в [examples/inputs](examples/inputs); сгенерированные карточки появятся в `examples/`
-после запуска `scripts.generate_examples`.
+Входы: [examples/inputs](examples/inputs). Готовые карточки настоящей модели (`gemini-3.5-flash-lite`):
+[манометр](examples/manometer.md), [термометр с неполными данными](examples/thermometer.md) (+ `.json`).
 
 ## Безопасность
 | Угроза | Защита |
