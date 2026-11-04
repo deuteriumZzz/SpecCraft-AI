@@ -37,6 +37,9 @@
       --warn-bg: 58 28 23;
     }
   }
+  /* Атрибут hidden должен побеждать утилиты display (flex, grid): без этого панель с
+     классом flex остаётся на экране, хотя «скрыта». */
+  [hidden] { display: none !important; }
   html { color-scheme: light dark; }
   ::selection { background: rgb(var(--accent) / 0.25); }
 }
