@@ -1,0 +1,39 @@
+[project]
+name = "speccraft-ai"
+version = "0.1.0"
+description = "AI-помощник для подготовки товарных описаний КИП (FastAPI + Gemini)"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn>=0.32",
+    "pydantic>=2.9",
+    "pydantic-settings>=2.6",
+    "pyyaml>=6.0",
+    "google-genai>=1.0",
+    "slowapi>=0.1.9",
+    "httpx>=0.27",  # импортируется напрямую в app/llm/gemini.py
+]
+
+[dependency-groups]
+dev = ["pytest>=8", "ruff>=0.8", "pip-audit>=2.7"]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "S"]
+
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["fastapi.Depends"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101", "S603", "S607"]
+"evals/*" = ["S101"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
