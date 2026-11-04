@@ -3,62 +3,67 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
   <title>SpecCraft AI — карточка товара</title>
   <link rel="stylesheet" href="/tailwind.css">
 </head>
-<body class="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
-  <div class="mx-auto max-w-6xl px-4 py-8">
-    <header class="mb-6">
-      <h1 class="text-2xl font-semibold tracking-tight">SpecCraft AI</h1>
-      <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">
-        Черновик карточки КИП из JSON. Характеристики берутся только из входных данных.
-      </p>
-    </header>
-
-    <main class="grid gap-6 lg:grid-cols-2">
-      <section aria-labelledby="in-title" class="flex flex-col">
-        <div class="mb-2 flex items-center justify-between">
-          <label id="in-title" for="input" class="text-sm font-medium">Данные о товаре (JSON)</label>
-          <button id="example" type="button"
-            class="rounded px-2 py-1 text-sm text-blue-700 hover:bg-blue-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 dark:text-blue-400 dark:hover:bg-slate-800">
-            Вставить пример
-          </button>
-        </div>
-        <textarea id="input" rows="18" spellcheck="false" maxlength="30000"
-          class="w-full flex-1 rounded-lg border border-slate-300 bg-white p-3 font-mono text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 dark:border-slate-700 dark:bg-slate-900"
-          placeholder='{"name": "...", "manufacturer": "...", "specs": {"ключ": "значение"}, "description": "..."}'></textarea>
-        <button id="run" type="button"
-          class="mt-3 rounded-lg bg-blue-700 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60">
-          Сгенерировать карточку
-        </button>
-        <p id="status" role="status" aria-live="polite" class="mt-2 min-h-5 text-sm text-slate-600 dark:text-slate-400"></p>
-        <div id="error" role="alert" hidden
-          class="mt-2 rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200"></div>
-      </section>
-
-      <section aria-labelledby="out-title" class="min-w-0">
-        <div class="mb-2 flex items-center justify-between gap-2">
-          <h2 id="out-title" class="text-sm font-medium">Результат</h2>
-          <button id="copy" type="button" disabled
-            class="rounded px-2 py-1 text-sm text-blue-700 hover:bg-blue-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 disabled:opacity-50 dark:text-blue-400 dark:hover:bg-slate-800">
-            Копировать
-          </button>
-        </div>
-        <div role="tablist" aria-label="Формат результата" class="mb-3 flex gap-1 border-b border-slate-200 dark:border-slate-800">
-          <button role="tab" data-tab="card" aria-selected="true" type="button"
-            class="tab -mb-px border-b-2 border-transparent px-3 py-2 text-sm aria-selected:border-blue-700 aria-selected:font-medium">Карточка</button>
-          <button role="tab" data-tab="markdown" aria-selected="false" type="button"
-            class="tab -mb-px border-b-2 border-transparent px-3 py-2 text-sm aria-selected:border-blue-700 aria-selected:font-medium">Markdown</button>
-          <button role="tab" data-tab="json" aria-selected="false" type="button"
-            class="tab -mb-px border-b-2 border-transparent px-3 py-2 text-sm aria-selected:border-blue-700 aria-selected:font-medium">JSON</button>
-        </div>
-        <div id="output" role="tabpanel"
-          class="min-h-64 rounded-lg border border-slate-200 bg-white p-4 text-sm dark:border-slate-800 dark:bg-slate-900">
-          <p class="text-slate-500">Здесь появится карточка товара.</p>
-        </div>
-      </section>
-    </main>
+<body class="min-h-screen bg-paper font-sans text-ink antialiased">
+  <div id="progress" hidden class="fixed inset-x-0 top-0 z-10 h-0.5 overflow-hidden bg-rule" aria-hidden="true">
+    <div class="h-full w-1/3 bg-accent motion-safe:animate-indeterminate motion-reduce:w-full"></div>
   </div>
+
+  <header class="border-b border-rule">
+    <div class="mx-auto flex h-12 max-w-[88rem] items-center justify-between px-4 sm:px-6">
+      <div class="flex items-baseline gap-3">
+        <span class="text-[15px] font-semibold tracking-tight">SpecCraft</span>
+        <span class="hidden text-xs text-ink-2 sm:inline">Карточка КИП из JSON</span>
+      </div>
+      <span class="font-mono text-[11px] uppercase tracking-widest text-ink-2">Черновик</span>
+    </div>
+  </header>
+
+  <main class="mx-auto grid max-w-[88rem] lg:min-h-[calc(100vh-3rem)] lg:grid-cols-[minmax(22rem,2fr)_3fr]">
+    <section aria-labelledby="in-title"
+      class="flex flex-col gap-3 p-4 sm:p-6 lg:sticky lg:top-0 lg:h-[calc(100vh-3rem)] lg:self-start lg:overflow-y-auto">
+      <div class="flex items-baseline justify-between gap-3">
+        <label id="in-title" for="input" class="text-[11px] font-semibold uppercase tracking-widest text-ink-2">Исходные данные</label>
+        <button id="example" type="button"
+          class="rounded-sm text-sm text-accent underline decoration-accent/40 underline-offset-4 hover:decoration-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+          Вставить пример
+        </button>
+      </div>
+      <textarea id="input" spellcheck="false" maxlength="30000"
+        class="min-h-[18rem] w-full flex-1 resize-y rounded-md border border-rule bg-sheet p-3 font-mono text-[13px] leading-6 placeholder:text-ink-2/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        placeholder='{"name": "…", "manufacturer": "…", "specs": {"ключ": "значение"}, "description": "…"}'></textarea>
+      <p id="json-state" aria-live="polite" class="min-h-4 font-mono text-xs text-ink-2">&nbsp;</p>
+      <button id="run" type="button"
+        class="rounded-md bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-paper disabled:cursor-not-allowed disabled:opacity-60">
+        Сгенерировать карточку
+      </button>
+      <p class="text-xs text-ink-2"><kbd class="font-mono">Ctrl</kbd> + <kbd class="font-mono">Enter</kbd></p>
+      <p id="status" role="status" aria-live="polite" class="min-h-5 text-sm text-ink-2"></p>
+      <div id="error" role="alert" hidden class="border-l-2 border-warn bg-warn-bg/70 px-3 py-2 text-sm text-warn"></div>
+    </section>
+
+    <section aria-labelledby="out-title" class="min-w-0 border-t border-rule bg-sheet p-4 sm:p-8 lg:border-l lg:border-t-0">
+      <h2 id="out-title" class="sr-only">Результат</h2>
+      <div class="mb-8 flex items-end justify-between gap-3 border-b border-rule">
+        <div role="tablist" aria-label="Формат результата" class="flex gap-5">
+          <button id="tab-card" role="tab" data-tab="card" aria-selected="true" aria-controls="output" type="button"
+            class="tab -mb-px border-b-2 border-transparent pb-2.5 text-sm text-ink-2 hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-accent aria-selected:border-accent aria-selected:font-semibold aria-selected:text-ink">Карточка</button>
+          <button id="tab-markdown" role="tab" data-tab="markdown" aria-selected="false" aria-controls="output" type="button"
+            class="tab -mb-px border-b-2 border-transparent pb-2.5 text-sm text-ink-2 hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-accent aria-selected:border-accent aria-selected:font-semibold aria-selected:text-ink">Markdown</button>
+          <button id="tab-json" role="tab" data-tab="json" aria-selected="false" aria-controls="output" type="button"
+            class="tab -mb-px border-b-2 border-transparent pb-2.5 text-sm text-ink-2 hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-accent aria-selected:border-accent aria-selected:font-semibold aria-selected:text-ink">JSON</button>
+        </div>
+        <button id="copy" type="button" disabled
+          class="mb-2 rounded-md border border-rule px-3 py-1 text-sm font-medium hover:border-accent hover:text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-rule disabled:hover:text-ink">
+          Копировать
+        </button>
+      </div>
+      <div id="output" role="tabpanel" tabindex="0" class="focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"></div>
+    </section>
+  </main>
   <script src="/app.js" defer></script>
 </body>
 </html>
