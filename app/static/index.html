@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SpecCraft AI — карточка товара</title>
+  <link rel="stylesheet" href="/tailwind.css">
+</head>
+<body class="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+  <div class="mx-auto max-w-6xl px-4 py-8">
+    <header class="mb-6">
+      <h1 class="text-2xl font-semibold tracking-tight">SpecCraft AI</h1>
+      <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">
+        Черновик карточки КИП из JSON. Характеристики берутся только из входных данных.
+      </p>
+    </header>
+
+    <main class="grid gap-6 lg:grid-cols-2">
+      <section aria-labelledby="in-title" class="flex flex-col">
+        <div class="mb-2 flex items-center justify-between">
+          <label id="in-title" for="input" class="text-sm font-medium">Данные о товаре (JSON)</label>
+          <button id="example" type="button"
+            class="rounded px-2 py-1 text-sm text-blue-700 hover:bg-blue-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 dark:text-blue-400 dark:hover:bg-slate-800">
+            Вставить пример
+          </button>
+        </div>
+        <textarea id="input" rows="18" spellcheck="false" maxlength="30000"
+          class="w-full flex-1 rounded-lg border border-slate-300 bg-white p-3 font-mono text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 dark:border-slate-700 dark:bg-slate-900"
+          placeholder='{"name": "...", "manufacturer": "...", "specs": {"ключ": "значение"}, "description": "..."}'></textarea>
+        <button id="run" type="button"
+          class="mt-3 rounded-lg bg-blue-700 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60">
+          Сгенерировать карточку
+        </button>
+        <p id="status" role="status" aria-live="polite" class="mt-2 min-h-5 text-sm text-slate-600 dark:text-slate-400"></p>
+        <div id="error" role="alert" hidden
+          class="mt-2 rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200"></div>
+      </section>
+
+      <section aria-labelledby="out-title" class="min-w-0">
+        <div class="mb-2 flex items-center justify-between gap-2">
+          <h2 id="out-title" class="text-sm font-medium">Результат</h2>
+          <button id="copy" type="button" disabled
+            class="rounded px-2 py-1 text-sm text-blue-700 hover:bg-blue-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 disabled:opacity-50 dark:text-blue-400 dark:hover:bg-slate-800">
+            Копировать
+          </button>
+        </div>
+        <div role="tablist" aria-label="Формат результата" class="mb-3 flex gap-1 border-b border-slate-200 dark:border-slate-800">
+          <button role="tab" data-tab="card" aria-selected="true" type="button"
+            class="tab -mb-px border-b-2 border-transparent px-3 py-2 text-sm aria-selected:border-blue-700 aria-selected:font-medium">Карточка</button>
+          <button role="tab" data-tab="markdown" aria-selected="false" type="button"
+            class="tab -mb-px border-b-2 border-transparent px-3 py-2 text-sm aria-selected:border-blue-700 aria-selected:font-medium">Markdown</button>
+          <button role="tab" data-tab="json" aria-selected="false" type="button"
+            class="tab -mb-px border-b-2 border-transparent px-3 py-2 text-sm aria-selected:border-blue-700 aria-selected:font-medium">JSON</button>
+        </div>
+        <div id="output" role="tabpanel"
+          class="min-h-64 rounded-lg border border-slate-200 bg-white p-4 text-sm dark:border-slate-800 dark:bg-slate-900">
+          <p class="text-slate-500">Здесь появится карточка товара.</p>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script src="/app.js" defer></script>
+</body>
+</html>
