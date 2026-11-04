@@ -133,3 +133,10 @@ def test_validation_details_are_in_russian(make_client):
     text = " ".join(body["details"])
     assert "нужна строка" in text and "неизвестное поле" in text
     assert "Input should" not in text and "Value error" not in text
+
+
+def test_static_files_are_revalidated_not_heuristically_cached(make_client):
+    client = make_client(FakeLLM())
+    for path in ("/", "/app.js", "/tailwind.css"):
+        assert client.get(path).headers["cache-control"] == "no-cache", path
+    assert client.post("/api/cards", json=PAYLOAD).headers["cache-control"] == "no-store"

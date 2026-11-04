@@ -97,6 +97,11 @@ def create_app(llm: LLMClient | None = None, settings: Settings | None = None) -
         response.headers.update(headers)
         if request.url.path.startswith("/api"):
             response.headers["Cache-Control"] = "no-store"
+        else:
+            # Статика без заголовка кэшируется браузером по эвристике (по Last-Modified): после
+            # обновления пользователь получил бы старый CSS/JS с новой разметкой. no-cache
+            # означает «перепроверять по ETag»: быстро (304), но без устаревших копий.
+            response.headers.setdefault("Cache-Control", "no-cache")
         response.headers["X-Request-ID"] = request.state.request_id
         log_event(
             "request", method=request.method, path=request.url.path, status=response.status_code,
