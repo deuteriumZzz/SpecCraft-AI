@@ -361,3 +361,20 @@ def test_too_few_queries_are_completed_from_the_product_name(make_service, produ
     assert 3 <= len(card.search_queries) <= 5
     assert all(q == q.lower() for q in card.search_queries)
     assert any("недостающие добавлены" in w for w in card.warnings)
+
+
+def test_ellipsis_from_a_truncated_description_never_reaches_the_card(make_service, good_output):
+    text = "Прибор предназначен для измерения давления..."
+    p = ProductIn(name="Манометр МТ-100", description=text)
+    echoed = {**good_output, "seo_description": text + " " + good_output["seo_description"]}
+    card = make_service(FakeLLM([echoed])).generate(p)
+    assert "..." not in card.seo_description and "…" not in card.seo_description.replace("…+", "")
+    assert card.seo_description.startswith("Прибор предназначен для измерения давления.")
+
+
+def test_ranges_with_an_ellipsis_are_kept(make_service, good_output):
+    p = ProductIn(name="Термометр", specs={"диапазон измерений": "-50…+300 °C"})
+    extra = " Диапазон -50…+300 °C."
+    out = {**good_output, "seo_description": good_output["seo_description"] + extra}
+    card = make_service(FakeLLM([out])).generate(p)
+    assert "-50…+300" in card.seo_description

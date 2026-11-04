@@ -35,6 +35,7 @@ INJECTION_WARNING = (
 MAX_MODEL_QUERIES = 10  # больше модель не должна присылать: лишнее отбрасывается с пометкой
 MAX_MODEL_WARNINGS = 5
 MAX_WARNING_LEN = 200
+_ELLIPSIS = re.compile(r"(?:\.{3,}|…)(?=\s|$)")
 
 # Предупреждение: (текст, раздел карточки или "" если относится ко всему ответу).
 Note = tuple[str, str]
@@ -162,7 +163,9 @@ class CardService:
         def clean(text: str) -> str:
             cleaned, kinds = strip_unsafe(text, source)
             removed.update(kinds)
-            return cleaned
+            # Оборванное многоточие из входа («давления...») в витринном тексте недопустимо.
+            # Диапазоны «-50…+300» не затрагиваются: после «…» там не пробел и не конец строки.
+            return _ELLIPSIS.sub(".", cleaned)
 
         data = card.model_copy(deep=True)
         # Размер ответа модели ограничиваем до разбора: схема лимитов не задаёт.
