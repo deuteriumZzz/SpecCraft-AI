@@ -30,6 +30,28 @@ function el(tag, cls, text) {
   return node;
 }
 
+// --- Движение. Только transform и opacity; токены длительности и кривой в frontend/tailwind.config.js.
+const reducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const STAGGER_MS = 50;
+const MAX_STAGGER_ITEMS = 12; // хвост длинных карточек не должен «доезжать» заметно позже
+
+// Секции проявляются по очереди сверху вниз (порядок чтения). При «уменьшить движение»
+// остаётся только короткое затухание без смещения и без задержек.
+function reveal(container) {
+  const still = reducedMotion();
+  [...container.children].slice(0, MAX_STAGGER_ITEMS).forEach((node, i) => {
+    node.classList.add("motion-safe:animate-rise", "motion-reduce:animate-fade");
+    if (!still) node.style.animationDelay = `${i * STAGGER_MS}ms`;
+  });
+}
+
+// Перезапуск короткого затухания у уже существующего элемента (ошибка, кнопка копирования).
+function flash(node) {
+  node.classList.remove("animate-fade");
+  void node.offsetWidth; // сброс анимации: без этого повторное добавление класса ничего не даст
+  node.classList.add("animate-fade");
+}
+
 function label(text) {
   return el("h3", "mb-2.5 text-[11px] font-semibold uppercase tracking-widest text-ink-2", text);
 }
@@ -60,10 +82,18 @@ function meter(title, value, [lo, hi], scaleMax, valueText) {
   const band = el("div", "absolute inset-y-0 rounded-full bg-ok/35");
   band.style.left = pct(lo) + "%";
   band.style.width = pct(hi) - pct(lo) + "%";
-  const mark = el("div",
-    "absolute -top-1 h-3.5 w-[3px] -translate-x-1/2 rounded-sm " + (ok ? "bg-ok" : "bg-warn"));
-  mark.style.left = pct(value) + "%";
-  track.append(band, mark);
+  // Стрелка «выезжает» к значению через transform: слой во всю ширину шкалы сдвигается в
+  // процентах от своей ширины (left не анимируем: он вызывает перерасчёт раскладки).
+  const slide = el("div",
+    "absolute inset-0 motion-safe:transition-transform motion-safe:duration-slow motion-safe:ease-smooth");
+  slide.style.transform = "translateX(-100%)";
+  slide.append(el("div",
+    "absolute -top-1 right-0 h-3.5 w-[3px] translate-x-1/2 rounded-sm " + (ok ? "bg-ok" : "bg-warn")));
+  track.append(band, slide);
+  // Два кадра: сначала браузер рисует стартовое положение, потом запускается переход.
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    slide.style.transform = `translateX(${pct(value) - 100}%)`;
+  }));
   const box = el("div");
   box.append(head, track);
   return box;
@@ -172,12 +202,25 @@ function renderCard(card) {
 
   out.append(el("p", "mt-10 border-t border-rule pt-3 font-mono text-[11px] text-ink-2",
     `промпт v${card.meta.prompt_version} · ${card.meta.model}`));
+  reveal(out);
+}
+
+// Скелетон на время генерации: показывает, что идёт работа и какой формы будет результат.
+function renderSkeleton() {
+  const bar = (cls) => el("div", "rounded-sm bg-rule motion-safe:animate-pulse " + cls);
+  const meters = el("div", "mt-6 grid gap-5 border-y border-rule py-5 sm:grid-cols-3");
+  meters.append(bar("h-6"), bar("h-6"), bar("h-6"));
+  const lines = el("div", "mt-8 space-y-3");
+  lines.append(bar("h-4 w-full"), bar("h-4 w-11/12"), bar("h-4 w-4/5"), bar("h-4 w-full"), bar("h-4 w-2/3"));
+  const out = $("output");
+  out.replaceChildren(bar("h-8 w-3/5"), meters, lines);
+  out.setAttribute("aria-busy", "true");
 }
 
 function renderPre(text) {
   $("output").replaceChildren(
-    el("pre", "whitespace-pre-wrap break-words rounded-md border border-rule bg-paper p-4 " +
-      "font-mono text-[12.5px] leading-6", text));
+    el("pre", "animate-fade whitespace-pre-wrap break-words rounded-md border border-rule bg-paper " +
+      "p-4 font-mono text-[12.5px] leading-6", text));
 }
 
 function render() {
@@ -187,6 +230,7 @@ function render() {
     b.tabIndex = selected ? 0 : -1;
   });
   $("output").setAttribute("aria-labelledby", "tab-" + tab);
+  $("output").removeAttribute("aria-busy");
   $("copy").disabled = !result;
   if (!result) return renderEmpty();
   if (tab === "card") renderCard(result);
@@ -199,6 +243,7 @@ function showError(message, details = []) {
   box.replaceChildren(el("p", "font-medium", message));
   if (details.length) box.append(list(details, "mt-1"));
   box.hidden = false;
+  flash(box);
 }
 
 function setBusy(busy) {
@@ -241,6 +286,7 @@ async function generate() {
     return;
   }
   setBusy(true);
+  renderSkeleton();
   $("status").textContent = "Генерируем карточку…";
   let resp, data;
   try {
@@ -252,6 +298,7 @@ async function generate() {
     data = await resp.json().catch(() => null);
   } catch {
     setBusy(false);
+    render();
     $("status").textContent = "";
     showError("Нет связи с сервисом. Проверьте, что он запущен.");
     return;
@@ -259,10 +306,12 @@ async function generate() {
   setBusy(false);
   $("status").textContent = "";
   if (!resp.ok) {
+    render();
     showError((data && data.message) || "Не удалось получить ответ сервиса.", (data && data.details) || []);
     return;
   }
   if (!data || typeof data.seo_title !== "string") {
+    render();
     showError("Сервис вернул неожиданный ответ. Повторите запрос.");
     return;
   }
@@ -283,6 +332,7 @@ function copyCurrent() {
     : tab === "json" ? JSON.stringify(result, null, 2) : result.text;
   navigator.clipboard.writeText(text).then(() => {
     $("copy").textContent = "Скопировано";
+    flash($("copy"));
     $("status").textContent = "Скопировано в буфер обмена.";
     clearTimeout(copyTimer);
     copyTimer = setTimeout(() => { $("copy").textContent = "Копировать"; }, 1500);

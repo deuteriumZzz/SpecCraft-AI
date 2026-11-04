@@ -28,7 +28,7 @@
       <div class="flex items-baseline justify-between gap-3">
         <label id="in-title" for="input" class="text-[11px] font-semibold uppercase tracking-widest text-ink-2">Исходные данные</label>
         <button id="example" type="button"
-          class="rounded-sm text-sm text-accent underline decoration-accent/40 underline-offset-4 hover:decoration-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+          class="motion-safe:transition motion-safe:duration-fast motion-safe:ease-smooth motion-safe:active:scale-[0.98] rounded-sm text-sm text-accent underline decoration-accent/40 underline-offset-4 hover:decoration-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
           Вставить пример
         </button>
       </div>
@@ -37,7 +37,7 @@
         placeholder='{"name": "…", "manufacturer": "…", "specs": {"ключ": "значение"}, "description": "…"}'></textarea>
       <p id="json-state" aria-live="polite" class="min-h-4 font-mono text-xs text-ink-2">&nbsp;</p>
       <button id="run" type="button"
-        class="rounded-md bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-paper disabled:cursor-not-allowed disabled:opacity-60">
+        class="motion-safe:transition motion-safe:duration-fast motion-safe:ease-smooth motion-safe:active:scale-[0.98] rounded-md bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-paper disabled:cursor-not-allowed disabled:opacity-60">
         Сгенерировать карточку
       </button>
       <p class="text-xs text-ink-2"><kbd class="font-mono">Ctrl</kbd> + <kbd class="font-mono">Enter</kbd></p>
@@ -50,14 +50,14 @@
       <div class="mb-8 flex items-end justify-between gap-3 border-b border-rule">
         <div role="tablist" aria-label="Формат результата" class="flex gap-5">
           <button id="tab-card" role="tab" data-tab="card" aria-selected="true" aria-controls="output" type="button"
-            class="tab -mb-px border-b-2 border-transparent pb-2.5 text-sm text-ink-2 hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-accent aria-selected:border-accent aria-selected:font-semibold aria-selected:text-ink">Карточка</button>
+            class="tab transition-colors duration-fast -mb-px border-b-2 border-transparent pb-2.5 text-sm text-ink-2 hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-accent aria-selected:border-accent aria-selected:font-semibold aria-selected:text-ink">Карточка</button>
           <button id="tab-markdown" role="tab" data-tab="markdown" aria-selected="false" aria-controls="output" type="button"
-            class="tab -mb-px border-b-2 border-transparent pb-2.5 text-sm text-ink-2 hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-accent aria-selected:border-accent aria-selected:font-semibold aria-selected:text-ink">Markdown</button>
+            class="tab transition-colors duration-fast -mb-px border-b-2 border-transparent pb-2.5 text-sm text-ink-2 hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-accent aria-selected:border-accent aria-selected:font-semibold aria-selected:text-ink">Markdown</button>
           <button id="tab-json" role="tab" data-tab="json" aria-selected="false" aria-controls="output" type="button"
-            class="tab -mb-px border-b-2 border-transparent pb-2.5 text-sm text-ink-2 hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-accent aria-selected:border-accent aria-selected:font-semibold aria-selected:text-ink">JSON</button>
+            class="tab transition-colors duration-fast -mb-px border-b-2 border-transparent pb-2.5 text-sm text-ink-2 hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-accent aria-selected:border-accent aria-selected:font-semibold aria-selected:text-ink">JSON</button>
         </div>
         <button id="copy" type="button" disabled
-          class="mb-2 rounded-md border border-rule px-3 py-1 text-sm font-medium hover:border-accent hover:text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-rule disabled:hover:text-ink">
+          class="motion-safe:transition motion-safe:duration-fast motion-safe:ease-smooth motion-safe:active:scale-[0.98] mb-2 rounded-md border border-rule px-3 py-1 text-sm font-medium hover:border-accent hover:text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-rule disabled:hover:text-ink">
           Копировать
         </button>
       </div>
